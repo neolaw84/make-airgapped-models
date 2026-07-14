@@ -390,25 +390,43 @@ This directory contains a fully self-contained bundle for running `{model_id}` i
 ## Instructions for Air-Gapped Deployment
 
 1. **Transfer**: Compress and copy this entire directory to your target air-gapped machine.
-2. **Setup Environment**:
-   * On Linux/macOS:
+
+2. **Setup and Execution**:
+
+### Option A: System WITHOUT Conda (Local Virtual Environment)
+
+* **On Linux/macOS**:
+  ```bash
+  chmod +x setup_env.sh run.sh
+  ./setup_env.sh
+  ./run.sh [optional_path_to_input]
+  ```
+* **On Windows**:
+  ```cmd
+  setup_env.bat
+  run.bat [optional_path_to_input]
+  ```
+
+### Option B: System WITH Conda (Conda Environment)
+
+If your air-gapped machine uses Conda:
+1. Activate your target Conda environment:
+   ```bash
+   conda activate <your_conda_env>
+   ```
+2. Install the packaged dependencies offline from the local wheel cache:
+   * **On Linux/macOS**:
      ```bash
-     chmod +x setup_env.sh run.sh
-     ./setup_env.sh
+     pip install --no-index --find-links=./pip_cache -r requirements.txt
      ```
-   * On Windows:
+   * **On Windows**:
      ```cmd
-     setup_env.bat
+     pip install --no-index --find-links=.\\pip_cache -r requirements.txt
      ```
-3. **Run Inference**:
-   * On Linux/macOS:
-     ```bash
-     ./run.sh [optional_path_to_input]
-     ```
-   * On Windows:
-     ```cmd
-     run.bat [optional_path_to_input]
-     ```
+3. Run the inference wrapper:
+   ```bash
+   python run_inference.py [optional_path_to_input]
+   ```
 """
     with open(paths["readme"], "w") as f:
         f.write(readme_content)
