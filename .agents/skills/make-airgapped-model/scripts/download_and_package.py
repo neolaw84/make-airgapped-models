@@ -168,6 +168,7 @@ def generate_inference_script(paths, model_id):
             pass
 
     is_vision = "vision" in model_type or any("image" in arch.lower() or "resnet" in arch.lower() or "vit" in arch.lower() for arch in architectures)
+    is_audio = "speech" in model_type or "audio" in model_type or any("audio" in arch.lower() or "speech" in arch.lower() for arch in architectures)
 
     if is_vision:
         # Generate an image classification inference template
@@ -222,6 +223,83 @@ def main():
     if hasattr(model.config, "id2label") and model.config.id2label:
         label = model.config.id2label.get(predicted_class_idx, "Unknown")
         print(f"Predicted label: {{label}}")
+    print("-------------------------\\n")
+
+if __name__ == "__main__":
+    main()
+"""
+    elif is_audio:
+        # Generate an audio classification inference template
+        code = f"""import os
+import sys
+import numpy as np
+
+# Force offline mode
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+import torch
+import torchaudio
+from transformers import AutoFeatureExtractor, AutoModelForAudioClassification
+
+def main():
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_files")
+    
+    print("Loading feature extractor and model from local path...")
+    feature_extractor = AutoFeatureExtractor.from_pretrained(model_path, local_files_only=True)
+    model = AutoModelForAudioClassification.from_pretrained(model_path, local_files_only=True)
+    
+    # Get audio path from arguments, or create a dummy waveform
+    audio_path = None
+    if len(sys.argv) > 1:
+        audio_path = sys.argv[1]
+    
+    if audio_path and os.path.exists(audio_path):
+        print(f"Loading input audio: {{audio_path}}")
+        waveform, sampling_rate = torchaudio.load(audio_path)
+        # Convert to mono if multi-channel
+        if waveform.shape[0] > 1:
+            waveform = torch.mean(waveform, dim=0, keepdim=True)
+        # Resample to 16000Hz if needed
+        if sampling_rate != 16000:
+            print(f"Resampling audio from {{sampling_rate}}Hz to 16000Hz...")
+            resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16000)
+            waveform = resampler(waveform)
+            sampling_rate = 16000
+        audio_input = waveform.squeeze().numpy()
+    else:
+        print("No input audio path provided or file does not exist. Generating a dummy test waveform...")
+        # Create a 1-second sine wave at 16kHz
+        audio_input = np.sin(2 * np.pi * 440 * np.arange(16000) / 16000).astype(np.float32)
+        sampling_rate = 16000
+        import soundfile as sf
+        sf.write("dummy_test.wav", audio_input, 16000)
+        print("Generated 'dummy_test.wav' for verification.")
+        
+    print("Preprocessing audio...")
+    inputs = feature_extractor(audio_input, sampling_rate=sampling_rate, return_tensors="pt")
+    
+    print("Running inference...")
+    with torch.no_grad():
+        outputs = model(**inputs)
+        logits = outputs.logits
+        
+    # Since AudioSet models are typically multi-label classification, output probabilities with sigmoid
+    probabilities = torch.sigmoid(logits).squeeze()
+    
+    print("\\n--- Inference Results ---")
+    if hasattr(model.config, "id2label") and model.config.id2label:
+        # Get top 5 classes
+        top_k = min(5, len(probabilities))
+        top_prob, top_indices = torch.topk(probabilities, top_k)
+        for i in range(top_k):
+            idx = top_indices[i].item()
+            prob = top_prob[i].item()
+            label = model.config.id2label.get(str(idx), model.config.id2label.get(idx, f"Class {{idx}}"))
+            print(f"{{label}}: {{prob:.4f}}")
+    else:
+        predicted_class_idx = logits.argmax(-1).item()
+        print(f"Predicted class index: {{predicted_class_idx}}")
     print("-------------------------\\n")
 
 if __name__ == "__main__":

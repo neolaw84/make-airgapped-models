@@ -40,10 +40,18 @@ Options:
 - `--use_docker`: Whether to generate Docker assets (`Dockerfile`, `docker-compose.yml`) instead of virtual env scripts.
 - `--conda_env`: If creating a venv, you can optionally specify a conda environment name (e.g. `py312`) to act as the base interpreter path.
 
-### Step 3: Verify the Packaged Model
+### Step 3: Customize Generated Inference Scripts
 
-Once the script completes:
+Since a single Python template cannot support all Hugging Face model tasks (e.g. classification, generation, segmentation, audio vs text, etc.), you should treat the initialization script `download_and_package.py` as a scaffolder. Immediately after it finishes:
+1. Examine the model configuration/architecture inside `models/<model-name>/model_files/config.json`.
+2. Modify or completely rewrite `models/<model-name>/run_inference.py` to correctly load the model/preprocessor and run inference for its specific domain (audio, vision, NLP, etc.).
+3. Update `models/<model-name>/requirements.txt` and run `pip download` to fetch any extra packages required for your custom script if needed.
+
+### Step 4: Verify the Packaged Model
+
+Once the customizations are complete:
 1. Ensure `models/<model-name>/model_files` contains the actual configuration, vocabulary, and weights files (no symlinks).
 2. Ensure `models/<model-name>/pip_cache` contains the downloaded wheel dependencies.
 3. Test local environment installation by running the offline setup script (`setup_env.sh` or `setup_env.bat`).
 4. Test offline inference by running the runner script (`run.sh` or `run.bat`) to verify that the model loads locally and runs correctly without internet access.
+
